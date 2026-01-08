@@ -1,0 +1,78 @@
+---
+description:
+alwaysApply: true
+---
+
+Use these standards for Python code, focusing on maintainability, best practices, readability, and software organisation.
+
+## Best Practices
+
+### Dependencies
+
+- Dependencies flow one-way, from leaves to root, without cycles (e.g., no circular dependencies).
+- Declare all imports at the top of the file, never inside functions/classes.
+- Prefer to only import modules and minimize namespace pollution (e.g., `import m; m.f()` over `from m import f; f()`).
+- Avoid dynamic imports (e.g., `importlib.import_module`, `__import__`).
+- Do not leave unused imports.
+
+### Code Organization
+
+- Avoid premature abstraction and DRYing. Things will often look the same early on, but diverge over time.
+- Avoid module-scope logic; imports should have no side effects. Move the logic into functions.
+- Prefer composition over subclassing (except `abc.ABC` for abstract base classes).
+- List public methods before private methods in classes and modules.
+- Prefer named constants and enums over magic values.
+- Prefer well-maintained, widely used libraries over custom solutions (e.g., `tenacity` for retries, `gettext` for i18n).
+- Prefer `with` context managers over manual resource management.
+- Prefer f-strings over `str.format()`, `%`, `format()`.
+- Extract constants, use `SCREAMING_SNAKE_CASE`, place them at the top of the module.
+- Avoid explanatory comments. Decompose unclear logic into smaller parts with clear, self-descriptive names.
+
+### Concurrency & Performance
+
+- In `async/await` codebases, avoid blocking I/O (e.g., the `requests` module). Filesystem reads/writes are acceptable.
+- Use a single concurrency model (e.g., `async/await` or threads); do not mix models.
+- Prefer `concurrent.futures.ThreadPoolExecutor` over `multiprocessing.pool.ThreadPool` and `threading.Thread`.
+- Prefer `asyncio.create_task()` over `asyncio.ensure_future()`.
+
+### Function Design
+
+- Keep functions small, focused, and single-responsibility.
+- Prefer pure functions; when needed, isolate side effects in a clear, well-placed function.
+- Avoid mutable default args (use `None` and create the mutable object in the function body).
+- Name functions descriptively with verb+noun (e.g., `get_user_data()`, `validate_input()`, `calculate_area_of_circle()`).
+- Functions named `from_*`: lookup by the specified identifier; typically returns `T | None`; may return small collections.
+- Functions named `list_*`: always return a collection.
+- Use British English in names where there is a difference.
+- Prefer generators and lazy evaluation where appropriate.
+- Prefer keyword-only arguments for functions with non-obvious argument order. (e.g., `def login(username: str, password: str, *, remember_me: bool) -> AuthGrant: ...`)
+- Avoid exceptions, prefer `None`/`Enum` returns.
+
+### Type Safety & Introspection
+
+- Use static type hints for function arguments, return values, and collection-typed variables.
+- When typing collections, specify the type of all elements.
+- Explicitly type decorators (using `ParamSpec` and `Concatenate` when appropriate).
+- Use generics (`TypeVar`) where appropriate.
+- Avoid reflection (`getattr`, `setattr`, `hasattr`, `delattr`, `dir`, `globals`, `locals`, `exec`, `eval`, most of `inspect`). Exceptions: `isinstance`, `issubclass`, `callable`.
+- Prefer `isinstance(x, T)` over `type(x) is T`.
+- For singletons, prefer identity checks over equality checks.
+- For generics, prefer built-in collections over `typing` aliases (e.g., `list` over `List`).
+- Use new Python typing features, prefer `T | None` over `Optional[T]` and `T | Y` over `Union[T, Y]`. Use the `type` keyword when plausible.
+
+### Error Handling & Logging
+
+- Do not catch `BaseException` or use bare `except`; they catch `SystemExit` and `KeyboardInterrupt`.
+- Prefer structured/JSON logging over string interpolation (e.g., `logging.info("Hello", extra={"name": "John"})` over `logging.info(f"Hello {name}")`).
+- Use `logging.exception()` instead of `logging.error()` when an exception has been raised to log the stack trace.
+- Include `exc_info=True` in non-exception logging calls to log the stack trace when an exception is raised.
+
+## Goals
+
+Ensure the code follows Python best practices and is:
+
+- **Maintainable**: Easy to understand, modify, and extend
+- **Readable**: Clear naming and structure
+- **Type-safe**: Proper type hints throughout
+- **Well-organized**: Logical dependency flow and clean architecture
+- **Robust**: Proper error handling and logging
