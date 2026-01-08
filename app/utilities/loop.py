@@ -13,7 +13,7 @@ def install_optimal_loop() -> None:
             extra={"platform": sys.platform},
         )
         try:
-            import uvloop
+            import uvloop  # noqa: F401 # type: ignore[import]
 
             uvloop.install()
         except ImportError:
@@ -27,7 +27,7 @@ def install_optimal_loop() -> None:
             extra={"platform": sys.platform},
         )
         try:
-            import winloop
+            import winloop  # noqa: F401 # type: ignore[import]
 
             winloop.install()
         except ImportError:
