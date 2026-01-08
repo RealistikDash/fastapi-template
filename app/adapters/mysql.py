@@ -156,8 +156,7 @@ class MySQLTransaction(ImplementsMySQL):
 
 def default() -> ImplementsMySQL:
     """Creates a default configuration for the MySQL adapter using the `settings` module.
-    It is provided as a convenience function to avoid repeating the initialisation code
-    (namely between the API and worker contexts).
+    It is provided as a convenience function to avoid repeating the initialisation code.
 
     Note:
         The connection still has to be initialised by calling `connect()` on the returned instance.

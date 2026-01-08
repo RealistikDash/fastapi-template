@@ -168,3 +168,20 @@ class RedisPubsubRouter:
 
     def _get_handler(self, channel: str) -> PubSubHandler | None:
         return self._routes.get(channel)
+
+
+def default() -> RedisClient:
+    """Creates a default configuration for the Redis adapter using the `settings` module.
+    It is provided as a convenience function to avoid repeating the initialisation code.
+
+    Note:
+        The connection still has to be initialised by calling `initialise()` on the returned instance.
+    """
+
+    from app import settings
+
+    return RedisClient(
+        host=settings.REDIS_HOST,
+        port=settings.REDIS_PORT,
+        database=settings.REDIS_DATABASE,
+    )
