@@ -7,7 +7,6 @@ from enum import EnumMeta
 from enum import StrEnum
 from typing import Self
 from typing import TypeGuard
-from logging import Logger
 
 from app.adapters.mysql import ImplementsMySQL
 from app.adapters.redis import RedisClient

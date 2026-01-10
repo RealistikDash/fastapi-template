@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-import logging
 import sys
 
-logger = logging.getLogger(__name__)
+from app.utilities import logging
+
+logger = logging.get_logger(__name__)
 
 
 def install_optimal_loop() -> None:

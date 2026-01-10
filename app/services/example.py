@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-import logging
 from typing import override
 
 from app.services._common import AbstractContext
 from app.services._common import ServiceError
+from app.utilities import logging
 
 
-logger = logging.getLogger(__name__)
+logger = logging.get_logger(__name__)
 
 
 class ExampleError(ServiceError):

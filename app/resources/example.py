@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-import logging
-
 from pydantic import BaseModel
 
 from app.adapters.mysql import ImplementsMySQL
+from app.utilities import logging
 
-logger = logging.getLogger(__name__)
+
+logger = logging.get_logger(__name__)
 
 
 class ExampleResource(BaseModel):

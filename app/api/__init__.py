@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import logging
 import uuid
 from typing import Awaitable
 from typing import Callable
@@ -12,9 +11,13 @@ from starlette.responses import Response
 
 from app.adapters import mysql
 from app.adapters import redis
+from app.utilities import logging
+
+from . import v1
+from .v1.response import ServiceInterruptionException
 
 
-logger = logging.getLogger(__name__)
+logger = logging.get_logger(__name__)
 
 
 def create_app() -> FastAPI:
@@ -34,6 +37,8 @@ def create_routes(app: FastAPI) -> None:
     router = APIRouter(
         prefix="/api",
     )
+
+    router.include_router(v1.create_router())
 
     app.include_router(router)
     logger.debug("Attached routers to the app instance.")
@@ -107,4 +112,20 @@ def initialise_request_tracing(app: FastAPI) -> None:
         call_next: Callable[[Request], Awaitable[Response]],
     ) -> Response:
         request.state.uuid = str(uuid.uuid4())
+
+        logging.add_context(
+            uuid=request.state.uuid,
+        )
+
         return await call_next(request)
+
+
+def initialise_interruptions(app: FastAPI) -> None:
+    @app.exception_handler(ServiceInterruptionException)
+    async def service_interruption_exception_handler(
+        _: Request,
+        exc: ServiceInterruptionException,
+    ):
+        return exc.response
+
+    logger.debug("Initialised service interruption handler for app instance.")

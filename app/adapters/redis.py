@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 from collections.abc import Awaitable
 from collections.abc import Callable
 from collections.abc import Coroutine
@@ -10,9 +9,11 @@ from typing import Self
 
 from redis.asyncio import Redis
 
+from app.utilities import logging
+
 type PubSubHandler = Callable[[str], Coroutine[None, None, None]]
 
-logger = logging.getLogger(__name__)
+logger = logging.get_logger(__name__)
 
 
 class RedisClient(Redis):

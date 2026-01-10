@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import logging
 from abc import ABC
 from abc import abstractmethod
 from collections.abc import AsyncGenerator
@@ -15,11 +14,13 @@ from databases.core import Connection
 from databases.core import Transaction
 from databases.interfaces import Record
 
+from app.utilities import logging
+
 type MySQLValue = Any
 type MySQLRow = Mapping[str, MySQLValue]
 type MySQLValues = dict[str, MySQLValue]
 
-logger = logging.getLogger(__name__)
+logger = logging.get_logger(__name__)
 
 
 # Databases 0.5.0 broke mapping access, raising a silent DeprecationWarning.
