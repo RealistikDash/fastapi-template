@@ -261,8 +261,43 @@ The root `.env` file configures Docker Compose (ports, volume paths). See the Qu
 | `make build` | Build Docker images |
 | `make run` | Run app (foreground, see logs) |
 | `make run-d` | Run app (background) |
-| `make lint` | Run code quality checks |
+| `make lint` | Run pre-commit hooks on all files |
 | `make phpmyadmin` | Start PHPMyAdmin (development only) |
+
+---
+
+## Development Setup
+
+### Pre-commit Hooks
+
+This project uses [pre-commit](https://pre-commit.com/) for code quality. Install and activate:
+
+```bash
+pip install pre-commit
+pre-commit install
+```
+
+Hooks run automatically on `git commit`. To run manually:
+
+```bash
+make lint              # Run all hooks on all files
+pre-commit run         # Run on staged files only
+pre-commit run black   # Run specific hook
+```
+
+### Configured Hooks
+
+| Hook | Purpose |
+|------|---------|
+| `check-ast` | Validate Python syntax |
+| `check-merge-conflict` | Detect unresolved merge conflicts |
+| `detect-private-key` | Prevent committing private keys |
+| `black` | Code formatting |
+| `isort` | Import sorting |
+| `pyupgrade` | Modernise Python syntax (3.12+) |
+| `autoflake` | Remove unused imports |
+| `add-trailing-comma` | Add trailing commas |
+| `blacken-docs` | Format code blocks in documentation |
 
 ---
 
@@ -362,11 +397,3 @@ Middleware runs in **reverse order** of registration. Request tracing is registe
 | uvloop | ~2-4x faster than default asyncio event loop |
 
 ---
-
-## Development Tips
-
-1. **Start with the service layer** - Define your business logic before touching the API
-2. **Use type hints everywhere** - The codebase is fully typed, keep it that way
-3. **One service function = one operation** - Keep services focused
-4. **Repositories are dumb** - They just fetch/store data, no business logic
-5. **Test services, not endpoints** - Services are easier to test in isolation

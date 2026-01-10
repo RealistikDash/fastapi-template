@@ -4,8 +4,10 @@ repos:
     hooks:
       - id: check-ast
       - id: check-builtin-literals
+      - id: check-merge-conflict
       - id: check-yaml
       - id: debug-statements
+      - id: detect-private-key
       - id: end-of-file-fixer
       - id: requirements-txt-fixer
       - id: trailing-whitespace
@@ -17,7 +19,7 @@ repos:
     rev: v3.15.2
     hooks:
       - id: pyupgrade
-        args: [--py311-plus, --keep-runtime-typing]
+        args: [--py312-plus, --keep-runtime-typing]
   - repo: https://github.com/PyCQA/autoflake
     rev: v2.2.1
     hooks:
