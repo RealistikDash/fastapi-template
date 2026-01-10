@@ -197,17 +197,67 @@ Logging is configured via `logging.yaml` and uses structured JSON logging. Reque
 - PubSub handlers can be registered via decorators
 - Automatic connection lifecycle management
 
-## Dependencies
+## Migrations
 
-### Core
+This template uses [golang-migrate](https://github.com/golang-migrate/migrate) for database migrations. Migrations are automatically run before the application starts via a Docker service.
 
-- `fastapi` - Web framework
-- `uvicorn` - ASGI server
-- `databases[aiomysql]` - Async database interface
-- `redis` - Redis client
-- `python-dotenv` - Environment variable management
-- `python-json-logger` - Structured logging
-- `uvloop` - High-performance event loop (Linux/macOS)
+### Migration Structure
+
+Migrations are stored in `migrations/migrations/` and follow the naming convention:
+- `{timestamp}_{name}.up.sql` - Forward migration
+- `{timestamp}_{name}.down.sql` - Rollback migration
+
+Example:
+```
+migrations/
+└── migrations/
+    ├── 1768060473_example.up.sql
+    └── 1768060473_example.down.sql
+```
+
+### Creating Migrations
+
+1. **Generate a timestamp:**
+   ```bash
+   date +%s
+   # Example output: 1768060473
+   ```
+
+2. **Create migration files:**
+   ```bash
+   # Create up migration
+   touch migrations/migrations/$(date +%s)_create_users_table.up.sql
+   
+   # Create down migration
+   touch migrations/migrations/$(date +%s)_create_users_table.down.sql
+   ```
+
+3. **Write your SQL:**
+   ```sql
+   -- migrations/migrations/1768060473_create_users_table.up.sql
+   CREATE TABLE users (
+       id INT AUTO_INCREMENT PRIMARY KEY,
+       email VARCHAR(255) NOT NULL UNIQUE,
+       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+   );
+   ```
+
+   ```sql
+   -- migrations/migrations/1768060473_create_users_table.down.sql
+   DROP TABLE IF EXISTS users;
+   ```
+
+### Running Migrations
+
+Migrations run automatically when you start the application with Docker Compose. The migrations service:
+- Waits for MySQL to be healthy
+- Runs all pending migrations
+- Completes before the app service starts
+
+To manually run migrations (if needed):
+```bash
+docker compose run --rm migrations
+```
 
 ### Development
 
