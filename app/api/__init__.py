@@ -66,15 +66,11 @@ def initialise_mysql(app: FastAPI) -> None:
     async def mysql_transaction(
         request: Request,
         call_next: Callable[[Request], Awaitable[Response]],
-    ):  # TODO: Track request state with a UUID.
-        # logger.debug(
-        #    "Opened a new MySQL transaction for request.",
-        #    extra={
-        #        "uuid": request.state.uuid,
-        #    },
-        # )
+    ) -> Response:
         async with app.state.mysql.transaction() as sql:
             request.state.mysql = sql
+
+            logger.debug("Opened a new MySQL transaction for request.")
             return await call_next(request)
 
     logger.debug(

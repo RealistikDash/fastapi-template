@@ -1,0 +1,9 @@
+.env*
+__pycache__/
+.vscode/
+Makefile
+venv/
+.github/
+./volumes
+./configuration
+.cursor/
