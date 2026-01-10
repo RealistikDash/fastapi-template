@@ -14,13 +14,13 @@ from collections.abc import AsyncGenerator
 from typing import Annotated
 from typing import override
 
-from fastapi import Request
 from fastapi import Depends
+from fastapi import Request
 
-from app.services import AbstractContext
 from app.adapters.mysql import ImplementsMySQL
 from app.adapters.mysql import MySQLPoolAdapter
 from app.adapters.redis import RedisClient
+from app.services import AbstractContext
 
 
 class HTTPContext(AbstractContext):
@@ -73,6 +73,7 @@ RequiresContext = Annotated[HTTPContext, Depends(HTTPContext)]
 """A type alias for read-only operations using the connection pool."""
 
 RequiresTransaction = Annotated[
-    HTTPTransactionContext, Depends(_get_transaction_context)
+    HTTPTransactionContext,
+    Depends(_get_transaction_context),
 ]
 """A type alias for write operations that require an explicit database transaction."""

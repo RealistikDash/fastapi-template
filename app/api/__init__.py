@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import uuid
-from typing import Awaitable
-from typing import Callable
+from collections.abc import Awaitable
+from collections.abc import Callable
 
 from fastapi import APIRouter
 from fastapi import FastAPI
@@ -17,7 +17,6 @@ from app.utilities import logging
 
 from . import v1
 from .v1.response import ServiceInterruptionException
-
 
 logger = logging.get_logger(__name__)
 

@@ -5,7 +5,6 @@ from pydantic import BaseModel
 from app.adapters.mysql import ImplementsMySQL
 from app.utilities import logging
 
-
 logger = logging.get_logger(__name__)
 
 

@@ -91,6 +91,7 @@ Add to `app/services/_common.py`:
 ```python
 from app.resources.users import UserRepository
 
+
 class AbstractContext(ABC):
     # ... existing code ...
 
@@ -182,6 +183,7 @@ In `app/api/v1/__init__.py`:
 ```python
 from . import users
 
+
 def create_router() -> APIRouter:
     router = APIRouter(prefix="/v1")
     router.include_router(health.router)
@@ -205,13 +207,12 @@ Every endpoint receives a **context** that provides access to databases and repo
 ```python
 # Reading data - no transaction needed
 @router.get("/items")
-async def list_items(ctx: RequiresContext) -> Response:
-    ...
+async def list_items(ctx: RequiresContext) -> Response: ...
+
 
 # Writing data - transaction auto-commits on success, rolls back on error
 @router.post("/items")
-async def create_item(ctx: RequiresTransaction) -> Response:
-    ...
+async def create_item(ctx: RequiresTransaction) -> Response: ...
 ```
 
 ### Service Error Handling
@@ -224,6 +225,7 @@ async def get_user(ctx, user_id) -> UserError.OnSuccess[User]:
     if user is None:
         return UserError.NOT_FOUND  # Returns error
     return user  # Returns success
+
 
 # In API endpoint:
 result = await users.get_user(ctx, user_id)
@@ -303,10 +305,12 @@ from app.adapters.redis import RedisPubsubRouter
 
 pubsub_router = RedisPubsubRouter(prefix="myapp:")
 
+
 @pubsub_router.register("user_created")
 async def handle_user_created(data: str) -> None:
     # Handle the message
     print(f"User created: {data}")
+
 
 # In app initialization, include the router:
 # redis_client.include_router(pubsub_router)

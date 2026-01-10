@@ -1,15 +1,15 @@
 from __future__ import annotations
 
 import logging.config
-import yaml
-from logging import Logger as _LoggingLogger
-from typing import Protocol
 from collections.abc import Mapping
 from contextvars import ContextVar
+from logging import Logger as _LoggingLogger
 from types import TracebackType
 from typing import Any
+from typing import Protocol
 from typing import TypeAlias
 
+import yaml
 
 _SysExcInfoType: TypeAlias = (
     tuple[type[BaseException], BaseException, TracebackType | None]

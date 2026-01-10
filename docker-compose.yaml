@@ -71,4 +71,3 @@ services:
     # Volume for quick reloads during development
     volumes:
       - ./migrations/migrations:/migrations:ro
-

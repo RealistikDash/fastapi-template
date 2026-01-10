@@ -8,7 +8,6 @@ from app.services._common import AbstractContext
 from app.services._common import ServiceError
 from app.utilities import logging
 
-
 logger = logging.get_logger(__name__)
 
 

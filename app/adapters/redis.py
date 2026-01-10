@@ -109,8 +109,12 @@ class RedisClient(Redis):
 
                 await self._tasks.put(
                     asyncio.create_task(
-                        self.__safe_handle(handler, message["channel"], message["data"])
-                    )
+                        self.__safe_handle(
+                            handler,
+                            message["channel"],
+                            message["data"],
+                        ),
+                    ),
                 )
 
     async def __safe_handle(
