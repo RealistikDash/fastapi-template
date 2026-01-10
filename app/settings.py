@@ -15,6 +15,14 @@ MYSQL_USER = os.environ["MYSQL_USER"]
 MYSQL_PASSWORD = os.environ["MYSQL_PASSWORD"]
 MYSQL_DATABASE = os.environ["MYSQL_DATABASE"]
 
+# Redis configuration
 REDIS_HOST = os.environ["REDIS_HOST"]  # Non-standard
 REDIS_PORT = int(os.environ["REDIS_PORT"])  # Non-standard
 REDIS_DATABASE = int(os.environ["REDIS_DATABASE"])  # Non-standard
+
+# CORS configuration (comma-separated list of origins, empty to disable)
+CORS_ALLOWED_ORIGINS: list[str] = [
+    origin.strip()
+    for origin in os.environ.get("CORS_ALLOWED_ORIGINS", "").split(",")
+    if origin.strip()
+]

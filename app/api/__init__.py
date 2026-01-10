@@ -7,8 +7,10 @@ from typing import Callable
 from fastapi import APIRouter
 from fastapi import FastAPI
 from fastapi import Request
+from fastapi.middleware.cors import CORSMiddleware
 from starlette.responses import Response
 
+from app import settings
 from app.adapters import mysql
 from app.adapters import redis
 from app.utilities import logging
@@ -23,14 +25,34 @@ logger = logging.get_logger(__name__)
 def create_app() -> FastAPI:
     app = FastAPI()
 
+    initialise_cors(app)
     initialise_mysql(app)
     initialise_redis(app)
     initialise_request_tracing(app)
+    initialise_interruptions(app)
 
     create_routes(app)
 
     logger.debug("Finalised app instance.")
     return app
+
+
+def initialise_cors(app: FastAPI) -> None:
+    if not settings.CORS_ALLOWED_ORIGINS:
+        logger.debug("CORS not configured - no allowed origins specified.")
+        return
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.CORS_ALLOWED_ORIGINS,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    logger.debug(
+        "Configured CORS middleware.",
+        extra={"allowed_origins": settings.CORS_ALLOWED_ORIGINS},
+    )
 
 
 def create_routes(app: FastAPI) -> None:
@@ -60,18 +82,6 @@ def initialise_mysql(app: FastAPI) -> None:
     @app.on_event("shutdown")
     async def on_shutdown() -> None:
         await app.state.mysql.disconnect()
-
-    # Transaction management middleware
-    @app.middleware("http")
-    async def mysql_transaction(
-        request: Request,
-        call_next: Callable[[Request], Awaitable[Response]],
-    ) -> Response:
-        async with app.state.mysql.transaction() as sql:
-            request.state.mysql = sql
-
-            logger.debug("Opened a new MySQL transaction for request.")
-            return await call_next(request)
 
     logger.debug(
         "Attached MySQL to the app instance.",
@@ -113,7 +123,10 @@ def initialise_request_tracing(app: FastAPI) -> None:
             uuid=request.state.uuid,
         )
 
-        return await call_next(request)
+        try:
+            return await call_next(request)
+        finally:
+            logging.clear_context()
 
 
 def initialise_interruptions(app: FastAPI) -> None:

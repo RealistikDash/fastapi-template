@@ -1,265 +1,368 @@
 # FastAPI Template
 
-A production-ready FastAPI template repository with a clean architecture, comprehensive database adapters, structured logging, and Docker support. This template follows best practices for maintainable, type-safe Python applications.
+A production-ready FastAPI template with clean architecture, database adapters, and Docker support.
 
-## Features
+## Quick Start
 
-- **FastAPI** with async/await support
-- **MySQL** adapter with transaction management middleware
-- **Redis** adapter with PubSub support
-- **Structured JSON logging** with request tracing
-- **Docker & Docker Compose** setup for development
-- **Type-safe** codebase with comprehensive type hints
-- **Clean architecture** with clear separation of concerns
-- **Service error handling** with typed error responses
-- **Request context** injection for services
+```bash
+# 1. Copy all example environment files
+for f in configuration/*.example; do cp "$f" "${f%.example}"; done
 
-## Architecture
+# 2. Edit the copied files with your configuration
+#    - configuration/app.env     → CORS settings, etc.
+#    - configuration/mysql.env   → Database credentials
 
-The codebase follows a layered architecture:
+# 3. Create .env in project root for Docker Compose
+cat > .env << 'EOF'
+APP_EXTERNAL_PORT=8000
+MYSQL_DATA_PATH=./mysql_data
+PHPMYADMIN_EXTERNAL_PORT=8080
+EOF
+
+# 4. Build and run
+make build
+make run
+```
+
+The API is now available at `http://localhost:8000/api/v1/health`.
+
+---
+
+## Project Structure
 
 ```
 app/
-├── adapters/          # Database adapters (MySQL, Redis)
-├── api/              # FastAPI routes and HTTP layer
-│   └── v1/           # API version 1
-├── resources/        # Data access layer (repositories)
-├── services/         # Business logic layer
-├── settings.py       # Configuration management
-└── utilities/        # Shared utilities (logging, event loop)
+├── adapters/       # Database connections (MySQL, Redis)
+├── api/            # HTTP layer (routes, request/response)
+│   └── v1/         # API version 1
+├── resources/      # Repositories (data access)
+├── services/       # Business logic
+├── settings.py     # Environment configuration
+└── utilities/      # Helpers (logging, etc.)
 ```
 
-### Layer Responsibilities
+**Data flows one way:** `API → Services → Resources → Adapters`
 
-- **Adapters** (`app/adapters/`): Database connection management and query interfaces
-- **Resources** (`app/resources/`): Repository pattern for data access
-- **Services** (`app/services/`): Business logic and domain operations
-- **API** (`app/api/`): HTTP endpoints, request/response handling, and routing
+---
 
-### Key Patterns
+## Adding a New Feature
 
-- **Context Pattern**: Services receive an `AbstractContext` that provides access to database adapters
-- **Error Handling**: Services return `ServiceError.OnSuccess[T]` for type-safe error handling
-- **Transaction Management**: Automatic MySQL transaction per HTTP request via middleware
-- **Request Tracing**: UUID-based request tracing for log correlation
+### Step 1: Create a Repository
 
-## Setup
+Repositories handle database queries. Create `app/resources/users.py`:
 
-### Prerequisites
+```python
+from __future__ import annotations
 
-- Docker and Docker Compose
-- Make (optional, for convenience commands)
+from pydantic import BaseModel
+from app.adapters.mysql import ImplementsMySQL
 
-### Initial Setup
 
-1. **Clone and customize the repository name:**
-   ```bash
-   # Update Docker image names in docker-compose.yaml
-   # Change "app:latest" to your service name
-   ```
+class User(BaseModel):
+    id: int
+    email: str
 
-2. **Configure environment variables:**
-   ```bash
-   # Copy example files
-   cp configuration/app.env.example configuration/app.env
-   cp configuration/mysql.env.example configuration/mysql.env
-   
-   # Edit configuration/app.env and add:
-   APP_COMPONENT=fastapi
-   
-   # Edit configuration/mysql.env and configure:
-   MYSQL_ROOT_PASSWORD=your_root_password
-   MYSQL_DATABASE=your_database_name
-   MYSQL_USER=your_user
-   MYSQL_PASSWORD=your_password
-   ```
 
-3. **Build and run:**
-   ```bash
-   make build
-   make run
-   ```
+class UserRepository:
+    __slots__ = ("_mysql",)
 
-   Or using Docker Compose directly:
-   ```bash
-   docker compose build
-   docker compose up app
-   ```
+    def __init__(self, mysql: ImplementsMySQL) -> None:
+        self._mysql = mysql
 
-The API will be available at `http://localhost:${APP_EXTERNAL_PORT}` (default port configured in `docker-compose.yaml`).
+    async def find_by_id(self, user_id: int) -> User | None:
+        row = await self._mysql.fetch_one(
+            "SELECT id, email FROM users WHERE id = :id",
+            {"id": user_id},
+        )
+        return User(**row) if row else None
 
-## Development
+    async def create(self, email: str) -> User:
+        user_id = await self._mysql.execute(
+            "INSERT INTO users (email) VALUES (:email)",
+            {"email": email},
+        )
+        return User(id=user_id, email=email)
+```
 
-### Make Commands
+### Step 2: Register in Context
 
-- `make build` - Build Docker images
-- `make run` - Run the application (foreground)
-- `make run-d` - Run the application (detached/background)
-- `make lint` - Run pre-commit hooks
+Add to `app/services/_common.py`:
 
-### Project Structure
+```python
+from app.resources.users import UserRepository
 
-#### Adding a New Feature
+class AbstractContext(ABC):
+    # ... existing code ...
 
-1. **Create a Repository** (`app/resources/`):
-   ```python
-   # app/resources/my_feature.py
-   from app.adapters.mysql import ImplementsMySQL
-   
-   class MyFeatureRepository:
-       def __init__(self, mysql: ImplementsMySQL) -> None:
-           self._mysql = mysql
-   ```
+    @property
+    def users(self) -> UserRepository:
+        return UserRepository(self._mysql)
+```
 
-2. **Register the Repository** in `app/services/_common.py`:
-   ```python
-   # Add to AbstractContext class
-   @property
-   def my_feature(self) -> MyFeatureRepository:
-       return MyFeatureRepository(self._mysql)
-   ```
+### Step 3: Create a Service
 
-3. **Create a Service** (`app/services/`):
-   ```python
-   # app/services/my_feature.py
-   from app.services import AbstractContext, ServiceError
-   
-   class MyFeatureError(ServiceError):
-       def service(self) -> str:
-           return "my_feature"
-       
-       NOT_FOUND = "not_found"
-   
-   async def get_my_feature(
-       ctx: AbstractContext,
-       id: int,
-   ) -> MyFeatureError.OnSuccess[MyFeatureModel]:
-       # Business logic here
-       ...
-   ```
+Services contain business logic. Create `app/services/users.py`:
 
-4. **Create API Endpoints** (`app/api/v1/`):
-   ```python
-   # app/api/v1/my_feature.py
-   from fastapi import APIRouter
-   from app.api.v1.context import RequiresContext
-   from app.api.v1.response import create, unwrap
-   from app.services import my_feature
-   
-   router = APIRouter(prefix="/my-feature")
-   
-   @router.get("/{id}")
-   async def get_my_feature(
-       id: int,
-       ctx: RequiresContext,
-   ):
-       result = await my_feature.get_my_feature(ctx, id)
-       return create(unwrap(result))
-   ```
+```python
+from __future__ import annotations
 
-5. **Register the Router** in `app/api/v1/__init__.py`:
-   ```python
-   from . import my_feature
-   
-   def create_router() -> APIRouter:
-       router = APIRouter(prefix="/v1")
-       router.include_router(my_feature.router)
-       return router
-   ```
+from typing import override
+from fastapi import status
+
+from app.services._common import AbstractContext
+from app.services._common import ServiceError
+from app.resources.users import User
+
+
+class UserError(ServiceError):
+    NOT_FOUND = "not_found"
+    ALREADY_EXISTS = "already_exists"
+
+    @override
+    def service(self) -> str:
+        return "users"
+
+    @override
+    def status_code(self) -> int:
+        match self:
+            case UserError.NOT_FOUND:
+                return status.HTTP_404_NOT_FOUND
+            case UserError.ALREADY_EXISTS:
+                return status.HTTP_409_CONFLICT
+            case _:
+                return status.HTTP_500_INTERNAL_SERVER_ERROR
+
+
+async def get_user(
+    ctx: AbstractContext,
+    user_id: int,
+) -> UserError.OnSuccess[User]:
+    user = await ctx.users.find_by_id(user_id)
+    if user is None:
+        return UserError.NOT_FOUND
+    return user
+```
+
+### Step 4: Create API Endpoints
+
+Create `app/api/v1/users.py`:
+
+```python
+from __future__ import annotations
+
+from fastapi import APIRouter
+from fastapi import Response
+
+from app.api.v1 import response
+from app.api.v1.context import RequiresContext
+from app.api.v1.context import RequiresTransaction
+from app.services import users
+
+router = APIRouter(prefix="/users")
+
+
+# GET uses RequiresContext (read-only, uses connection pool)
+@router.get("/{user_id}")
+async def get_user(user_id: int, ctx: RequiresContext) -> Response:
+    result = await users.get_user(ctx, user_id)
+    return response.create(response.unwrap(result))
+
+
+# POST uses RequiresTransaction (writes, uses database transaction)
+@router.post("/")
+async def create_user(email: str, ctx: RequiresTransaction) -> Response:
+    result = await users.create_user(ctx, email)
+    return response.create(response.unwrap(result))
+```
+
+### Step 5: Register the Router
+
+In `app/api/v1/__init__.py`:
+
+```python
+from . import users
+
+def create_router() -> APIRouter:
+    router = APIRouter(prefix="/v1")
+    router.include_router(health.router)
+    router.include_router(users.router)  # Add this
+    return router
+```
+
+---
+
+## Key Concepts
+
+### Context & Dependency Injection
+
+Every endpoint receives a **context** that provides access to databases and repositories:
+
+| Dependency | Use Case | What It Does |
+|------------|----------|--------------|
+| `RequiresContext` | Read operations (GET) | Uses connection pool directly |
+| `RequiresTransaction` | Write operations (POST, PUT, DELETE) | Wraps in database transaction |
+
+```python
+# Reading data - no transaction needed
+@router.get("/items")
+async def list_items(ctx: RequiresContext) -> Response:
+    ...
+
+# Writing data - transaction auto-commits on success, rolls back on error
+@router.post("/items")
+async def create_item(ctx: RequiresTransaction) -> Response:
+    ...
+```
+
+### Service Error Handling
+
+Services return either a **success value** or an **error**. The `unwrap()` function handles this:
+
+```python
+async def get_user(ctx, user_id) -> UserError.OnSuccess[User]:
+    user = await ctx.users.find_by_id(user_id)
+    if user is None:
+        return UserError.NOT_FOUND  # Returns error
+    return user  # Returns success
+
+# In API endpoint:
+result = await users.get_user(ctx, user_id)
+data = response.unwrap(result)  # Raises exception if error, returns User if success
+```
+
+This pattern avoids exceptions for expected errors (like "not found") while keeping code clean.
+
+### Request Tracing
+
+Every request gets a unique UUID. All logs during that request include this UUID:
+
+```json
+{"uuid": "abc-123", "message": "User created", "user_id": 42}
+```
+
+This makes debugging production issues much easier—search logs by UUID to see everything that happened in one request.
+
+---
 
 ## Configuration
 
-### Environment Variables
+Environment files live in `configuration/`. Each `.example` file documents available options—copy them and fill in your values.
 
-The application uses environment variables loaded from `.env` files via `python-dotenv`. Key variables:
+The root `.env` file configures Docker Compose (ports, volume paths). See the Quick Start for the required variables.
 
-- `APP_COMPONENT`: Component type (e.g., `fastapi`)
-- `MYSQL_HOST`, `MYSQL_TCP_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DATABASE`: MySQL connection settings
-- `REDIS_HOST`, `REDIS_PORT`, `REDIS_DATABASE`: Redis connection settings
+---
 
-### Logging
+## Make Commands
 
-Logging is configured via `logging.yaml` and uses structured JSON logging. Request tracing automatically adds a UUID to each request for log correlation.
+| Command | Description |
+|---------|-------------|
+| `make build` | Build Docker images |
+| `make run` | Run app (foreground, see logs) |
+| `make run-d` | Run app (background) |
+| `make lint` | Run code quality checks |
+| `make phpmyadmin` | Start PHPMyAdmin (development only) |
 
-## Database Adapters
+---
 
-### MySQL
+## Database Migrations
 
-- Connection pooling via `databases` library
-- Automatic transaction management per HTTP request
-- Transaction context available via `request.state.mysql`
-- Supports both `asyncmy` and default MySQL drivers
+Migrations run automatically on startup. To create a new migration:
 
-### Redis
-
-- Async Redis client with PubSub support
-- PubSub handlers can be registered via decorators
-- Automatic connection lifecycle management
-
-## Migrations
-
-This template uses [golang-migrate](https://github.com/golang-migrate/migrate) for database migrations. Migrations are automatically run before the application starts via a Docker service.
-
-### Migration Structure
-
-Migrations are stored in `migrations/migrations/` and follow the naming convention:
-- `{timestamp}_{name}.up.sql` - Forward migration
-- `{timestamp}_{name}.down.sql` - Rollback migration
-
-Example:
-```
-migrations/
-└── migrations/
-    ├── 1768060473_example.up.sql
-    └── 1768060473_example.down.sql
-```
-
-### Creating Migrations
-
-1. **Generate a timestamp:**
-   ```bash
-   date +%s
-   # Example output: 1768060473
-   ```
-
-2. **Create migration files:**
-   ```bash
-   # Create up migration
-   touch migrations/migrations/$(date +%s)_create_users_table.up.sql
-   
-   # Create down migration
-   touch migrations/migrations/$(date +%s)_create_users_table.down.sql
-   ```
-
-3. **Write your SQL:**
-   ```sql
-   -- migrations/migrations/1768060473_create_users_table.up.sql
-   CREATE TABLE users (
-       id INT AUTO_INCREMENT PRIMARY KEY,
-       email VARCHAR(255) NOT NULL UNIQUE,
-       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-   );
-   ```
-
-   ```sql
-   -- migrations/migrations/1768060473_create_users_table.down.sql
-   DROP TABLE IF EXISTS users;
-   ```
-
-### Running Migrations
-
-Migrations run automatically when you start the application with Docker Compose. The migrations service:
-- Waits for MySQL to be healthy
-- Runs all pending migrations
-- Completes before the app service starts
-
-To manually run migrations (if needed):
 ```bash
-docker compose run --rm migrations
+# Generate timestamp
+TIMESTAMP=$(date +%s)
+
+# Create migration files
+touch migrations/migrations/${TIMESTAMP}_create_users.up.sql
+touch migrations/migrations/${TIMESTAMP}_create_users.down.sql
 ```
 
-### Development
+**Example migration:**
 
-- `pre-commit` - Git hooks for code quality
+```sql
+-- migrations/migrations/1234567890_create_users.up.sql
+CREATE TABLE users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
-See `requirements/main.txt` and `requirements/dev.txt` for complete dependency lists.
+-- migrations/migrations/1234567890_create_users.down.sql
+DROP TABLE IF EXISTS users;
+```
+
+---
+
+## Redis PubSub
+
+Register handlers for Redis channels:
+
+```python
+# In your service or separate file
+from app.adapters.redis import RedisPubsubRouter
+
+pubsub_router = RedisPubsubRouter(prefix="myapp:")
+
+@pubsub_router.register("user_created")
+async def handle_user_created(data: str) -> None:
+    # Handle the message
+    print(f"User created: {data}")
+
+# In app initialization, include the router:
+# redis_client.include_router(pubsub_router)
+```
+
+---
+
+## Logging
+
+Logs are JSON-formatted for easy parsing. Use structured logging:
+
+```python
+from app.utilities import logging
+
+logger = logging.get_logger(__name__)
+
+# Good - structured data
+logger.info("User created", extra={"user_id": 42, "email": "test@example.com"})
+
+# Avoid - string interpolation
+logger.info(f"User {user_id} created")  # Harder to search/filter
+```
+
+---
+
+## Known Gotchas
+
+### `from __future__ import annotations`
+
+**Do NOT add this import to `app/api/v1/context.py`.**
+
+It breaks FastAPI's dependency injection. All other files use it—this is the one exception. See the comment in that file for details.
+
+### Middleware Order
+
+Middleware runs in **reverse order** of registration. Request tracing is registered last so it runs first (wrapping everything else).
+
+---
+
+## Architecture Decisions
+
+| Decision | Rationale |
+|----------|-----------|
+| Explicit transactions via DI | Avoids unnecessary transactions for read operations |
+| Service errors as return values | Cleaner than exceptions for expected errors |
+| Repository per resource | Single responsibility, easy to test |
+| Context pattern | Dependency injection without global state |
+| JSON logging | Machine-parseable, works with log aggregators |
+| uvloop | ~2-4x faster than default asyncio event loop |
+
+---
+
+## Development Tips
+
+1. **Start with the service layer** - Define your business logic before touching the API
+2. **Use type hints everywhere** - The codebase is fully typed, keep it that way
+3. **One service function = one operation** - Keep services focused
+4. **Repositories are dumb** - They just fetch/store data, no business logic
+5. **Test services, not endpoints** - Services are easier to test in isolation

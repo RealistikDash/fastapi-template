@@ -6,7 +6,9 @@ from abc import abstractmethod
 from enum import EnumMeta
 from enum import StrEnum
 from typing import Self
-from typing import TypeGuard
+from typing import TypeIs
+
+from fastapi import status
 
 from app.adapters.mysql import ImplementsMySQL
 from app.adapters.redis import RedisClient
@@ -28,13 +30,21 @@ class ServiceError(ABC, StrEnum, metaclass=_CombinedMeta):
 
         ...
 
+    def status_code(self) -> int:
+        """HTTP status code for this error. Override in subclasses for specific mappings."""
+        return status.HTTP_500_INTERNAL_SERVER_ERROR
+
     def resolve_name(self) -> str:
         """A name of the error involving the service name."""
         return f"{self.service()}.{self.value}"
 
 
-def is_success[V](error: ServiceError.OnSuccess[V]) -> TypeGuard[V]:
-    return not isinstance(error, ServiceError)
+def is_success[V](result: ServiceError.OnSuccess[V]) -> TypeIs[V]:
+    return not isinstance(result, ServiceError)
+
+
+def is_error[V](result: ServiceError.OnSuccess[V]) -> TypeIs[ServiceError]:
+    return isinstance(result, ServiceError)
 
 
 class AbstractContext(ABC):

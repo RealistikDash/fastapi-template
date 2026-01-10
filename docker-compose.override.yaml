@@ -1,0 +1,29 @@
+# Development overrides - automatically loaded by Docker Compose
+# To run without dev mode: docker compose -f docker-compose.yaml up
+services:
+  app:
+    environment:
+      - APP_DEV_MODE=true
+    volumes:
+      - ./app:/app/app:ro
+
+  # Development-only database admin interface
+  # Run with: make phpmyadmin
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    profiles:
+      - dev
+    ports:
+      - "${PHPMYADMIN_EXTERNAL_PORT:-8080}:80"
+    healthcheck:
+      test: "curl --fail http://localhost"
+      interval: 2s
+      timeout: 20s
+      retries: 10
+    environment:
+      - PMA_HOST=mysql
+      - UPLOAD_LIMIT=1G
+      - HIDE_PHP_VERSION=true
+    depends_on:
+      mysql:
+        condition: service_healthy

@@ -7,7 +7,7 @@ from fastapi.responses import Response
 from pydantic import BaseModel
 
 from app.services import ServiceError
-from app.services import is_success
+from app.services import is_error
 from app.utilities import logging
 
 logger = logging.get_logger(__name__)
@@ -38,21 +38,20 @@ def create(data: Any, *, status: int = status.HTTP_200_OK) -> Response:
 
 
 def unwrap[T](service_response: ServiceError.OnSuccess[T]) -> T:
-    if is_success(service_response):
-        return service_response
+    if is_error(service_response):
+        logger.debug(
+            "API call was interrupted by a service error.",
+            extra={
+                "error": service_response.resolve_name(),
+                "status_code": service_response.status_code(),
+            },
+        )
 
-    logger.debug(
-        "API call was interrupted by a service error.",
-        extra={
-            "error": service_response,
-        },
-    )
+        raise ServiceInterruptionException(
+            create(
+                data=service_response.resolve_name(),
+                status=service_response.status_code(),
+            ),
+        )
 
-    raise ServiceInterruptionException(
-        create(
-            data=service_response,
-            # TODO: Determine appropriate status code.
-            # For now, we assume a service interruption.
-            status=status.HTTP_503_SERVICE_UNAVAILABLE,
-        ),
-    )
+    return service_response

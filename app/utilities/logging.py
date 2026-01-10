@@ -87,7 +87,7 @@ class Logger(Protocol):
 
 # Context management
 def add_context(**kwargs: Any) -> None:
-    """Add key-value pairs to the current thread-local logging context."""
+    """Add key-value pairs to the current request-local logging context."""
     log_context = _LOG_CONTEXT.get()
 
     if log_context is None:
@@ -95,6 +95,11 @@ def add_context(**kwargs: Any) -> None:
         _LOG_CONTEXT.set(log_context)
 
     log_context.update(kwargs)
+
+
+def clear_context() -> None:
+    """Clear the current request-local logging context."""
+    _LOG_CONTEXT.set(None)
 
 
 def get_current_context() -> dict[str, Any]:

@@ -1,10 +1,8 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Awaitable
 from collections.abc import Callable
 from collections.abc import Coroutine
-from queue import Queue
 from typing import Self
 
 from redis.asyncio import Redis
@@ -14,6 +12,8 @@ from app.utilities import logging
 type PubSubHandler = Callable[[str], Coroutine[None, None, None]]
 
 logger = logging.get_logger(__name__)
+
+_TASK_QUEUE_SIZE = 100
 
 
 class RedisClient(Redis):
@@ -34,21 +34,21 @@ class RedisClient(Redis):
             decode_responses=True,
         )
 
-        self._default_initialise = self.initialize
-        del self.initialize
-
         self._pubsub_router = RedisPubsubRouter()
-        self._tasks: Queue[Awaitable[None]] = Queue(100)
+        self._tasks: asyncio.Queue[asyncio.Task[None]] = asyncio.Queue(_TASK_QUEUE_SIZE)
         self._pubsub_listen_lock = asyncio.Lock()
         self._pubsub_task: asyncio.Task[None] | None = None
 
     async def initialise(self) -> Self:
         """Initialises the Redis client, creating the PubSub task if necessary."""
 
+        # Test connection by pinging Redis (ensure connection is established)
+        await self.execute_command("PING")  # Sus
+
         if not self._pubsub_router.empty:
             await self.__create_pubsub_task()
 
-        return await self._default_initialise()
+        return self
 
     def register(
         self,
@@ -80,6 +80,11 @@ class RedisClient(Redis):
             for channel in self._pubsub_router.route_map():
                 await pubsub.subscribe(channel)
 
+            logger.info(
+                "PubSub listener started.",
+                extra={"channels": list(self._pubsub_router.route_map().keys())},
+            )
+
             while True:
                 message = await pubsub.get_message()
                 if message is None:
@@ -98,14 +103,33 @@ class RedisClient(Redis):
                     )
                     continue
 
-                # NOTE: Asyncio tasks can get GC'd lmfao.
+                # NOTE: Asyncio tasks can get GC'd, so we hold references in a queue.
                 if self._tasks.full():
-                    self._tasks.get()
+                    self._tasks.get_nowait()
 
-                self._tasks.put(asyncio.create_task(handler(message["data"])))
+                await self._tasks.put(
+                    asyncio.create_task(
+                        self.__safe_handle(handler, message["channel"], message["data"])
+                    )
+                )
 
-                # NOTE: Loop handoff to prevent blocking the event loop.
-                await asyncio.sleep(0)
+    async def __safe_handle(
+        self,
+        handler: PubSubHandler,
+        channel: str,
+        data: str,
+    ) -> None:
+        """Wraps handler execution with error handling to prevent individual
+        handler failures from affecting other handlers or the listener."""
+        try:
+            await handler(data)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception(
+                "PubSub handler raised an exception.",
+                extra={"channel": channel},
+            )
 
     async def __create_pubsub_task(self) -> asyncio.Task[None]:
         if self._pubsub_task is not None:

@@ -10,3 +10,7 @@ run-d:
 
 lint:
 	pre-commit run --all-files
+
+# Development tools
+phpmyadmin:
+	docker compose --profile dev up phpmyadmin
