@@ -13,7 +13,6 @@ A production-ready FastAPI template repository with a clean architecture, compre
 - **Clean architecture** with clear separation of concerns
 - **Service error handling** with typed error responses
 - **Request context** injection for services
-- **API versioning** support (v1+)
 
 ## Architecture
 
@@ -123,7 +122,7 @@ The API will be available at `http://localhost:${APP_EXTERNAL_PORT}` (default po
 3. **Create a Service** (`app/services/`):
    ```python
    # app/services/my_feature.py
-   from app.services._common import AbstractContext, ServiceError
+   from app.services import AbstractContext, ServiceError
    
    class MyFeatureError(ServiceError):
        def service(self) -> str:

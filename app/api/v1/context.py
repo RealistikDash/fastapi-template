@@ -8,7 +8,7 @@ from typing import override
 from fastapi import Request
 from fastapi import Depends
 
-from app.services._common import AbstractContext
+from app.services import AbstractContext
 from app.adapters.mysql import ImplementsMySQL
 from app.adapters.redis import RedisClient
 

@@ -6,8 +6,8 @@ from fastapi import status
 from fastapi.responses import Response
 from pydantic import BaseModel
 
-from app.services._common import ServiceError
-from app.services._common import is_success
+from app.services import ServiceError
+from app.services import is_success
 from app.utilities import logging
 
 logger = logging.get_logger(__name__)
