@@ -5,7 +5,6 @@ from abc import ABCMeta
 from abc import abstractmethod
 from enum import EnumMeta
 from enum import StrEnum
-from typing import Self
 from typing import TypeIs
 
 from fastapi import status
@@ -22,7 +21,11 @@ class _CombinedMeta(EnumMeta, ABCMeta):
 class ServiceError(ABC, StrEnum, metaclass=_CombinedMeta):
     # Stops EnumMeta from complaining about the OnSuccess type.
     _ignore_ = ["OnSuccess"]
-    type OnSuccess[T] = T | Self
+    type OnSuccess[T] = T | ServiceError
+
+    # This is technically more correct, but most type checkers really struggle with
+    # the resolution of Self.
+    # type OnSuccess[T] = T | Self
 
     @abstractmethod
     def service(self) -> str:
